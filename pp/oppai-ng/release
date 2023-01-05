@@ -2,48 +2,32 @@
 
 dir=$(dirname $0)
 
-olddir=$(pwd)
-cd $dir
+git pull origin master
 
-echo""
-echo "compiling and stripping"
-CC=musl-gcc ./build -static -no-pie || exit $?
-CC=gcc ./libbuild || exit $?
+echo -e "\nCompiling and Stripping"
+. "$dir"/build -static -no-pie || exit 1
 
-echo""
-echo "packaging"
+echo -e "\nPackaging"
 folder="oppai-$(./oppai -version)-"
-folder="${folder}$(gcc -dumpmachine)"
+folder="${folder}$(uname | tr '[:upper:]' '[:lower:]')-$(uname -m)"
 
-mkdir -p "$folder" || exit $?
-mv ./oppai $folder/oppai || exit $?
-mv ./liboppai.so $folder/liboppai.so || exit $?
-git archive HEAD --prefix=src/ -o "$folder"/src.tar ||
-  exit $?
-cd "$folder" || exit $?
-tar xf src.tar || exit $?
-cd .. || exit $?
+mkdir -p "$folder"
+mv ./oppai $folder/oppai
+git archive HEAD --prefix=src/ -o "$folder"/src.tar
+cd "$folder"
+tar xf src.tar
+cd ..
 
 rm "$folder".tar.xz
 tar -cvJf "$folder".tar.xz \
-  "$folder"/oppai \
-  "$folder"/liboppai.so \
-  "$folder"/src \
-  || exit $?
+    "$folder"/oppai \
+    "$folder"/src
 
-echo ""
-file "$folder".tar.xz
+echo -e "\nResult:"
 tar tf "$folder".tar.xz
 
-echo ""
-file "$folder"/oppai
 readelf --dynamic "$folder"/oppai
 ldd "$folder"/oppai
 
-echo ""
-file "$folder"/liboppai.so
-ldd "$folder"/liboppai.so
-
 rm -rf "$folder"
-cd $olddir
 

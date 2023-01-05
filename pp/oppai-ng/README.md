@@ -17,8 +17,6 @@ to taiko).
 - [installing (windows)](#installing-windows)
 - [installing (osx)](#installing-osx)
 - [usage](#usage)
-- [implementations for other programming languages](#implementations-for-other-programming-languages)
-- [bindings for other programming languages](#bindings-for-other-programming-languages)
 - [oppai-ng vs old oppai](#oppai-ng-vs-old-oppai)
 - [compile from source (windows)](#compile-from-source-windows)
 - [using oppai as a library or making bindings](#using-oppai-as-a-library-or-making-bindings)
@@ -92,28 +90,6 @@ while on windows it's a bit more verbose (powershell):
 
 I got the .osu file url from "Grab latest .osu file" on the
 beatmap's page.
-
-# implementations for other programming languages
-oppai has been implemented for many other programming languages.
-If you feel like making your own implementation and want it listed
-here, open an issue or pull request. the requirement is that it
-should pass the same test suite that oppai-ng passes.
-
-* [ojsama (javascript)](https://github.com/Francesco149/ojsama)
-* [koohii (java)](https://github.com/Francesco149/koohii) . this
-  is currently being used in tillerino.
-* [pyttanko (python)](https://github.com/Francesco149/pyttanko)
-* [oppai5 (golang)](https://github.com/flesnuk/oppai5) (by flesnuk)
-* [OppaiSharp (C#)](https://github.com/HoLLy-HaCKeR/OppaiSharp)
-  (by HoLLy)
-
-# bindings for other programming languages
-thanks to swig it's trivial to generate native bindings for other
-programming languages. bindings are an interface to the C code, meaning
-that you get basically the same performance as C by sacrificing some
-portability
-
-* [python](https://github.com/Francesco149/oppai-ng/swig/python)
 
 # oppai-ng vs old oppai
 executable size is around 7 times smaller:
@@ -293,12 +269,28 @@ library.
 #define OPPAI_IMPLEMENTATION
 #include "../oppai.c"
 
-int main() {
-  ezpp_t ez = ezpp_new();
-  ezpp_set_mods(ez, MODS_HD | MODS_DT);
-  ezpp(ez, "-");
-  printf("%gpp\n", ezpp_pp(ez));
-  return 0;
+int main()
+{
+    struct parser pstate;
+    struct beatmap map;
+
+    uint32_t mods;
+    struct diff_calc stars;
+    struct pp_calc pp;
+
+    p_init(&pstate);
+    p_map(&pstate, &map, stdin);
+
+    mods = MODS_HD | MODS_DT;
+
+    d_init(&stars);
+    d_calc(&stars, &map, mods);
+    printf("%g stars\n", stars.total);
+
+    b_ppv2(&map, &pp, stars.aim, stars.speed, mods);
+    printf("%gpp\n", pp.total);
+
+    return 0;
 }
 ```
 
@@ -312,55 +304,29 @@ read oppai.c, there's documentation for each function at the top.
 see examples directory for detailed examples. you can also read
 main.c to see how the CLI uses it.
 
+oppai is also modular, you can define out parts of the code
+that you don't use by defining any of:
+```
+OPPAI_NOPARSER
+OPPAI_NOPP
+OPPAI_NODIFFCALC
+```
+
 if you don't feel comfortable writing bindings or using oppai
 from c code, you can use the -o parameter to output in json or
 other parsable formats. ```examples/binary.c``` shows how to parse
 the binary output.
 
-# shared library
-you can also build oppai as a shared library with
-
-```sh
-./libbuild
-```
-
-this will generate a liboppai.so on linux/mac which you can copy to
-```/usr/local/lib``` or anywhere in your library search paths
-
-you can then use it by simply not defining ```OPPAI_IMPLEMENTATION``` .
-this will exclude all the oppai code and just leave the header part
-
-
-```c
-#include "oppai.c"
-
-int main() {
-  /* ... */
-}
-```
-
-then you can compile and run with
-
-```
-gcc test.c -lm -loppai
-cat /path/to/file.osu | ./a.out
-```
-
-for windows you can use ```libbuild.bat``` to build (for details see the
-info on compiling on windows) which will generate a oppai.dll and .lib pair
-
-and then compile your program with msvc like so
-
-```
-cl test.c oppai.lib
-```
-
-then you can simply place the dll in the same folder as your executable
-and run
-
-# build parameters
+# other build parameters
 when you build the oppai cli, you can pass any of these parameters
 to the build script to disable features:
 
-* ```-DOPPAI_UTF8GRAPH``` use utf-8 characters for the strains graph
+* ```-DOPPAI_NOTEXT``` disables text output module
+* ```-DOPPAI_NOJSON``` disables json output module
+* ```-DOPPAI_NOCSV``` disables CSV output module
+* ```-DOPPAI_NOBINARY``` disables binary output module
+* ```-DOPPAI_DEBUG``` enables debug output module and memory usage
+    statistics
+* ```-DOPPAI_NOSTDINT``` doesn't use ```stdint.h```, as some
+    machines or old compilers don't have it
 
