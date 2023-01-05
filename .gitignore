@@ -10,5 +10,4 @@ common_refractor
 *.c
 *.so
 *.log
-
-realistikcalc/ # Haha no calc for you
+common
