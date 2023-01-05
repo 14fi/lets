@@ -10,10 +10,17 @@ from common.ripple import userUtils
 from constants import rankedStatuses
 from common.ripple import scoreUtils
 from objects import glob
-from pp import ez_peace
-from pp import ez, ez_rosu_pp
+from pp import rippoppai, cicciobello, wifipiano2
+
 
 class score:
+	PP_CALCULATORS = {
+	gameModes.STD: rippoppai.oppai,
+	gameModes.TAIKO: rippoppai.oppai,
+	gameModes.CTB: cicciobello.Cicciobello,
+	gameModes.MANIA: wifipiano2.piano
+	}
+
 	__slots__ = ["scoreID", "playerName", "score", "maxCombo", "c50", "c100", "c300", "cMiss", "cKatu", "cGeki",
 				 "fullCombo", "mods", "playerUserID","rank","date", "hasReplay", "fileMd5", "passed", "playDateTime",
 				 "gameMode", "completed", "accuracy", "pp", "sr", "oldPersonalBest", "rankedScoreIncrease", "personalOldBestScore",
@@ -340,10 +347,16 @@ class score:
 
 		# Calculate pp
 		if b.rankedStatus in [rankedStatuses.RANKED, rankedStatuses.APPROVED, rankedStatuses.QUALIFIED] and b.rankedStatus != rankedStatuses.UNKNOWN \
-		and scoreUtils.isRankable(self.mods) and self.passed and self.gameMode in pp.PP_CALCULATORS:
-			calculator = pp.PP_CALCULATORS[self.gameMode](b, self)
+		and scoreUtils.isRankable(self.mods) and self.passed and self.gameMode in score.PP_CALCULATORS:
+			calculator = score.PP_CALCULATORS[self.gameMode](b, self)
 			self.pp = calculator.pp
-			self.sr = calculator.stars
+		elif glob.conf.extra["lets"]["submit"]["loved-dont-give-pp"] and b.rankedStatus == rankedStatuses.LOVED \
+		and scoreUtils.isRankable(self.mods) and self.passed and self.gameMode in score.PP_CALCULATORS:
+			self.pp = 0
+		elif not glob.conf.extra["lets"]["submit"]["loved-dont-give-pp"] and b.rankedStatus == rankedStatuses.LOVED \
+		and scoreUtils.isRankable(self.mods) and self.passed and self.gameMode in score.PP_CALCULATORS:
+			calculator = score.PP_CALCULATORS[self.gameMode](b, self)
+			self.pp = calculator.pp
 		else:
 			self.pp = 0
 

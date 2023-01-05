@@ -10,20 +10,19 @@ from common.ripple import userUtils
 from constants import rankedStatuses
 from common.ripple import scoreUtils
 from objects import glob
-from pp import ez_peace
-from pp import ez, ez_rosu_pp
 
+from pp import rippoppai, cicciobello, wifipiano2
 
 class score:
 	PP_CALCULATORS = {
-		gameModes.STD: ez_peace.EzPeace,
-		gameModes.TAIKO: ez_peace.EzPeace,
-		gameModes.CTB: ez_peace.EzPeace,
-		gameModes.MANIA: ez_peace.EzPeace
+    	gameModes.STD: rippoppai.oppai,
+    	gameModes.TAIKO: rippoppai.oppai,
+    	gameModes.CTB: cicciobello.Cicciobello,
+    	gameModes.MANIA: wifipiano2.piano
 	}
 
 	PP_RELAX_CALCULATORS = {
-		gameModes.STD: ez.Ez
+    	gameModes.STD: rippoppai.oppai,
 	}
 
 	__slots__ = ["scoreID", "playerName", "score", "maxCombo", "c50", "c100", "c300", "cMiss", "cKatu", "cGeki",
@@ -367,20 +366,6 @@ class score:
 		glob.redis.incr("ripple:total_plays", 1)
 
 	def calculatePP(self, b = None):
-		"""
-		Calculate this score's pp value if completed == 3
-		"""
-		# Create beatmap object
-		if b is None:
-			b = beatmap.beatmap(self.fileMd5, 0)
-
-		# Calculate pp
-		if b.rankedStatus in [rankedStatuses.RANKED, rankedStatuses.APPROVED, rankedStatuses.QUALIFIED] and b.rankedStatus != rankedStatuses.UNKNOWN \
-		and scoreUtils.isRankable(self.mods) and self.passed and self.gameMode in score.PP_CALCULATORS:
-			calculator = pp.PP_RELAX_CALCULATORS[self.gameMode](b, self)
-			self.pp = calculator.pp
-			self.sr = calculator.stars
-		else:
-			self.pp = 0
-		log.debug(f"pp is {self.pp}")
+		self.pp = 0
+		return
 

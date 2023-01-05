@@ -44,9 +44,9 @@ from objects import scoreAuto
 from objects import scoreboardAuto
 from objects.charts import BeatmapChart, OverallChart , OverallChartFailed , BeatmapChartFailed
 from secret.discord_hooks import Webhook
-from circleguard import *
-import matplotlib.pyplot as plt
-from circleparse import replay as circleparse
+#from circleguard import *
+#import matplotlib.pyplot as plt
+#from circleparse import replay as circleparse
 MODULE_NAME = "submit_modular"
 
 #TODO: use cdef
@@ -834,6 +834,7 @@ class handler(requestsManager.asyncRequestHandler):
 
 				#TODO: clean up this code
 				#welcome to if hell
+				'''
 				if s.gameMode == gameModes.STD and not UsingAutopilot and s.pp > 3 or s.gameMode == gameModes.STD and not UsingAutopilot and glob.debug or s.gameMode == gameModes.STD and not UsingAutopilot and userID == 1003:
 					#dont allow loved or unranked because some maps like aspire break circleguard
 					if beatmapInfo.rankedStatus == rankedStatuses.RANKED or beatmapInfo.rankedStatus == rankedStatuses.QUALIFIED or beatmapInfo.rankedStatus == rankedStatuses.APPROVED:
@@ -851,10 +852,10 @@ class handler(requestsManager.asyncRequestHandler):
 							with open(f"{replays_path}{replay_mode_full}/replay_{s.scoreID}.osr", "wb") as rdf:
 								rdf.write(full_replay)
 							try:
-								'''
-								TODO: re-enable this when this pull request gets merged
-								https://github.com/circleguard/circlecore/pull/153
-								'''
+								
+								#TODO: re-enable this when this pull request gets merged
+								#https://github.com/circleguard/circlecore/pull/153
+								
 								if UsingRelax:
 									cgparsed = circleparse.parse_replay_file("{}_relax_full/replay_{}.osr".format(replays_path, (s.scoreID)))
 									replay = ReplayPath("{}_relax_full/replay_{}.osr".format(replays_path, (s.scoreID)))
@@ -948,7 +949,7 @@ class handler(requestsManager.asyncRequestHandler):
 												pass
 											webhook.set_footer(text="ghostbusters")
 											webhook.post()
-					
+					'''
 
 				log.debug("getting data for anticheat checks")
 

@@ -356,24 +356,5 @@ class score:
 		glob.redis.incr("ripple:total_plays", 1)
 
 	def calculatePP(self, b = None):
-		"""
-		Calculate this score's pp value if completed == 3
-		"""
-		# Create beatmap object
-		if b is None:
-			b = beatmap.beatmap(self.fileMd5, 0)
-
-		# Calculate pp
-		if b.rankedStatus in [rankedStatuses.RANKED, rankedStatuses.APPROVED, rankedStatuses.QUALIFIED] and b.rankedStatus != rankedStatuses.UNKNOWN \
-		and scoreUtils.isRankable(self.mods) and self.passed and self.gameMode in score.PP_CALCULATORS:
-			calculator = score.PP_CALCULATORS[self.gameMode](b, self)
-			self.pp = calculator.pp
-		elif glob.conf.extra["lets"]["submit"]["loved-dont-give-pp"] and b.rankedStatus == rankedStatuses.LOVED \
-		and scoreUtils.isRankable(self.mods) and self.passed and self.gameMode in score.PP_CALCULATORS:
-			self.pp = 0
-		elif not glob.conf.extra["lets"]["submit"]["loved-dont-give-pp"] and b.rankedStatus == rankedStatuses.LOVED \
-		and scoreUtils.isRankable(self.mods) and self.passed and self.gameMode in score.PP_CALCULATORS:
-			calculator = score.PP_CALCULATORS[self.gameMode](b, self)
-			self.pp = calculator.pp
-		else:
-			self.pp = 0
+		self.pp = 0
+		return

@@ -13,7 +13,7 @@ from common.web import requestsManager
 from constants import exceptions
 from helpers import osuapiHelper
 from objects import glob
-from pp import ez_peace
+from pp import rippoppai, relaxoppai, relax2oppai
 from common.sentry import sentry
 
 MODULE_NAME = "api/pp"
@@ -63,26 +63,20 @@ class handler(requestsManager.asyncRequestHandler):
 				except ValueError:
 					raise exceptions.invalidArgumentsException(MODULE_NAME)
 			else:
-				accuracy = -1.0
+				accuracy = None
 
 			# Print message
 			log.info("Requested pp for beatmap {}".format(beatmapID))
 
-			""" Peppy >:(
 			# Get beatmap md5 from osuapi
 			# TODO: Move this to beatmap object
 			osuapiData = osuapiHelper.osuApiRequest("get_beatmaps", "b={}".format(beatmapID))
+			if int(beatmapID) > 100000000:
+				raise exceptions.ppCustomBeatmap(MODULE_NAME)
 			if osuapiData is None or "file_md5" not in osuapiData or "beatmapset_id" not in osuapiData:
 				raise exceptions.invalidBeatmapException(MODULE_NAME)
 			beatmapMd5 = osuapiData["file_md5"]
 			beatmapSetID = osuapiData["beatmapset_id"]
-			"""
-			dbData = glob.db.fetch("SELECT beatmap_md5, beatmapset_id FROM beatmaps WHERE beatmap_id = {}".format(beatmapID))
-			if dbData is None:
-				raise exceptions.invalidBeatmapException(MODULE_NAME)
-
-			beatmapMd5 = dbData["beatmap_md5"]
-			beatmapSetID = dbData["beatmapset_id"]
 
 			# Create beatmap object
 			bmap = beatmap.beatmap(beatmapMd5, beatmapSetID)
@@ -102,44 +96,59 @@ class handler(requestsManager.asyncRequestHandler):
 					gameMode = gameModes.MANIA
 
 			# Calculate pp
-			if accuracy < 0 and modsEnum == 0:
-				# Generic acc
-				# Get cached pp values
-				cachedPP = bmap.getCachedTillerinoPP()
-				if (modsEnum&mods.RELAX or modsEnum&mods.RELAX2):
-					cachedPP = [0,0,0,0]
+			if gameMode in (gameModes.STD, gameModes.TAIKO):
+				# Std pp
+				if accuracy is None and modsEnum == 0:
+					# Generic acc/nomod
+					# Get cached pp values
+					cachedPP = bmap.getCachedTillerinoPP()
+					if (modsEnum&mods.RELAX):
+						cachedPP = [0,0,0,0]
+					elif (modsEnum&mods.RELAX2):
+						cachedPP = [0,0,0,0]
 
-				if cachedPP != [0,0,0,0]:
-					log.debug("Got cached pp.")
-					returnPP = cachedPP
+					if cachedPP != [0,0,0,0]:
+						log.debug("Got cached pp.")
+						returnPP = cachedPP
+					else:
+						log.debug("Cached pp not found. Calculating pp with oppai...")
+						# Cached pp not found, calculate them
+						if gameMode == gameModes.STD and (modsEnum&mods.RELAX):
+							oppai = relaxoppai.oppai(bmap, mods=modsEnum, tillerino=True)
+						elif gameMode == gameModes.STD and (modsEnum&mods.RELAX2):
+							oppai = relax2oppai.oppai(bmap, mods=modsEnum, tillerino=True)
+						else:
+							oppai = rippoppai.oppai(bmap, mods=modsEnum, tillerino=True)
+						returnPP = oppai.pp
+						bmap.starsStd = oppai.stars
+
+						if not (modsEnum&mods.RELAX) or (modsEnum&mods.RELAX2):
+							# Cache values in DB
+							log.debug("Saving cached pp...")
+							if type(returnPP) == list and len(returnPP) == 4:
+								bmap.saveCachedTillerinoPP(returnPP)
 				else:
-					log.debug("Cached pp not found. Calculating pp with oppai...")
-					# Cached pp not found, calculate them
-					peace = ez_peace.EzPeace(bmap, mods_=modsEnum, tillerino=True)
-
-					returnPP = peace.pp
-					bmap.starsStd = peace.stars
-
-					if not (modsEnum&mods.RELAX or modsEnum&mods.RELAX2):
-						# Cache values in DB
-						log.debug("Saving cached pp...")
-						if type(returnPP) == list and len(returnPP) == 4:
-							bmap.saveCachedTillerinoPP(returnPP)
+					# Specific accuracy/mods, calculate pp
+					# Create oppai instance
+					log.debug("Specific request ({}%/{}). Calculating pp with oppai...".format(accuracy, modsEnum))
+					if gameMode == gameModes.STD and (modsEnum&mods.RELAX):
+						oppai = relaxoppai.oppai(bmap, mods=modsEnum, tillerino=True)
+					elif gameMode == gameModes.STD and (modsEnum&mods.RELAX2):
+						oppai = relax2oppai.oppai(bmap, mods=modsEnum, tillerino=True)
+					else:
+						oppai = rippoppai.oppai(bmap, mods=modsEnum, tillerino=True)
+					bmap.starsStd = oppai.stars
+					if accuracy is not None:
+						returnPP = calculatePPFromAcc(oppai, accuracy)
+					else:
+						returnPP = oppai.pp
 			else:
-				# Specific accuracy, calculate
-				# Create peace instance
-				log.debug("Specific request ({}%/{}). Calculating pp with peace...".format(accuracy, modsEnum))
-				peace = ez_peace.EzPeace(bmap, mods_=modsEnum, tillerino=True)
-				bmap.starsStd = peace.stars
-				if accuracy > 0:
-					returnPP.append(calculatePPFromAcc(peace, accuracy))
-				else:
-					returnPP = peace.pp
+				raise exceptions.unsupportedGameModeException()
 
 			# Data to return
 			data = {
 				"song_name": bmap.songName,
-				"pp": [round(x, 2) for x in returnPP] if type(returnPP) == list else round(returnPP, 2),
+				"pp": [x for x in returnPP] if type(returnPP) is list else returnPP,
 				"length": bmap.hitLength,
 				"stars": bmap.starsStd,
 				"ar": bmap.AR,
@@ -153,6 +162,9 @@ class handler(requestsManager.asyncRequestHandler):
 			# Set error and message
 			statusCode = 400
 			data["message"] = "missing required arguments"
+		except exceptions.ppCustomBeatmap:
+			statusCode = 400
+			data["message"] = "Custom map does not supported pp calculating yet"
 		except exceptions.invalidBeatmapException:
 			statusCode = 400
 			data["message"] = "beatmap not found"
@@ -175,7 +187,7 @@ class handler(requestsManager.asyncRequestHandler):
 			self.set_header("Content-Type", "application/json")
 			self.set_status(statusCode)
 
-def calculatePPFromAcc(ppcalc: ez_peace.EzPeace, acc):
+def calculatePPFromAcc(ppcalc, acc):
 	ppcalc.acc = acc
 	ppcalc.calculatePP()
 	return ppcalc.pp
