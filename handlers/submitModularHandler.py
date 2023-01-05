@@ -38,10 +38,6 @@ from objects import beatmap
 from objects import glob
 from objects import score
 from objects import scoreboard
-from objects import scoreRelax
-from objects import scoreboardRelax
-from objects import scoreAuto
-from objects import scoreboardAuto
 from objects.charts import BeatmapChart, OverallChart , OverallChartFailed , BeatmapChartFailed
 from secret.discord_hooks import Webhook
 #from circleguard import *
@@ -163,19 +159,11 @@ class handler(requestsManager.asyncRequestHandler):
 			UsingAutopilot = used_mods & 8192
 
 			if UsingRelax:
-
-				replay_mode_full = "_relax_full"
-				replay_mode = "_relax"
-				game_mode_str = "RELAX"
-				ProfAppend = "rx/"
-				rx_type = 1
+				self.write("error: no")
+				return
 			elif UsingAutopilot:
-				#unused
-				replay_mode_full = ""
-				replay_mode = "_ap"
-				game_mode_str = "AUTOPILOT"
-				ProfAppend = "ap/"
-				rx_type = 2
+				self.write("error: no")
+				return
 			else:
 				replay_mode_full = "_full"
 				replay_mode = ""
@@ -183,17 +171,8 @@ class handler(requestsManager.asyncRequestHandler):
 				ProfAppend = ""
 				rx_type = 0
 
-			# Create score object and set its data
-			log.debug("creating score object")
-			if UsingRelax:
-				log.info("[RELAX] {} has submitted a score on {}...".format(username, scoreData[0]))
-				s = scoreRelax.score()
-			elif UsingAutopilot:
-				log.info("[AUTOPILOT] {} has submitted a score on {}...".format(username, scoreData[0]))
-				s = scoreAuto.score()
-			else:
-				log.info("[VANILLA] {} has submitted a score on {}...".format(username, scoreData[0]))
-				s = score.score()
+			log.info("{} has submitted a score on {}...".format(username, scoreData[0]))
+			s = score.score()
 			log.debug("setting data from score data")
 			s.setDataFromScoreData(scoreData, quit_=quit_, failed=failed)
 			s.playerUserID = userID
@@ -434,55 +413,24 @@ class handler(requestsManager.asyncRequestHandler):
 			log.debug("Updating {}'s stats...".format(username))
 			# Update personal beatmaps playcount
 			
-			#TODO: sometimes this takes almost 20 seconds and i have no idea why
-			if UsingRelax:
-				userUtils.updateStatsRx(userID, s)
-				userUtils.updateTotalHitsRX(score=s)
-			elif UsingAutopilot:
-				userUtils.updateStatsAP(userID, s)
-				userUtils.updateTotalHitsAP(score=s)
-			else:
-				userUtils.updateStats(userID, s)
-				userUtils.updateTotalHits(score=s)
+			userUtils.updateStats(userID, s)
+			userUtils.updateTotalHits(score=s)
 			
 			# Get "after" stats for ranking panel
 			# and to determine if we should update the leaderboard
 			# (only if we passed that song)
 			if s.passed:
-				# Get new stats
-				if UsingRelax:
-					oldUserStats = glob.userStatsCacheRX.get(userID, s.gameMode)
-					oldRank = userUtils.getGameRankRx(userID, s.gameMode)
-					newUserStats = userUtils.getUserStatsRx(userID, s.gameMode)
-					glob.userStatsCacheRX.update(userID, s.gameMode, newUserStats)
-					leaderboardHelperRelax.update(userID, newUserStats["pp"], s.gameMode)
-					maxCombo = userUtils.getMaxComboRX(userID, s.gameMode)
-				elif UsingAutopilot:
-					oldUserStats = glob.userStatsCacheAP.get(userID, s.gameMode)
-					oldRank = userUtils.getGameRankAP(userID, s.gameMode)
-					newUserStats = userUtils.getUserStatsAP(userID, s.gameMode)
-					glob.userStatsCacheAP.update(userID, s.gameMode, newUserStats)
-					leaderboardHelperAuto.update(userID, newUserStats["pp"], s.gameMode)
-					maxCombo = userUtils.getMaxComboAP(userID, s.gameMode)
-				else:
-					oldUserStats = glob.userStatsCache.get(userID, s.gameMode)
-					oldRank = userUtils.getGameRank(userID, s.gameMode)
-					newUserStats = userUtils.getUserStats(userID, s.gameMode)
-					glob.userStatsCache.update(userID, s.gameMode, newUserStats)
-					leaderboardHelper.update(userID, newUserStats["pp"], s.gameMode)
-					maxCombo = userUtils.getMaxCombo(userID, s.gameMode)
+				oldUserStats = glob.userStatsCache.get(userID, s.gameMode)
+				oldRank = userUtils.getGameRank(userID, s.gameMode)
+				newUserStats = userUtils.getUserStats(userID, s.gameMode)
+				glob.userStatsCache.update(userID, s.gameMode, newUserStats)
+				leaderboardHelper.update(userID, newUserStats["pp"], s.gameMode)
+				maxCombo = userUtils.getMaxCombo(userID, s.gameMode)
 
 				# Update leaderboard (global and country) if score/pp has changed
 				if s.completed == 3 and newUserStats["pp"] != oldUserStats["pp"]:
-					if UsingRelax:
-						leaderboardHelperRelax.update(userID, newUserStats["pp"], s.gameMode)
-						leaderboardHelperRelax.updateCountry(userID, newUserStats["pp"], s.gameMode)
-					elif UsingAutopilot:
-						leaderboardHelperAuto.update(userID, newUserStats["pp"], s.gameMode)
-						leaderboardHelperAuto.updateCountry(userID, newUserStats["pp"], s.gameMode)
-					else:
-						leaderboardHelper.update(userID, newUserStats["pp"], s.gameMode)
-						leaderboardHelper.updateCountry(userID, newUserStats["pp"], s.gameMode)
+					leaderboardHelper.update(userID, newUserStats["pp"], s.gameMode)
+					leaderboardHelper.updateCountry(userID, newUserStats["pp"], s.gameMode)
 
 
 
@@ -502,18 +450,13 @@ class handler(requestsManager.asyncRequestHandler):
 
 
 			# At the end, check achievements
-			#TODO: wtf is this
-			if UsingRelax:
-				_mode = s.gameMode + 4
-			elif UsingAutopilot:
-				_mode = s.gameMode + 7
-			else:
-				_mode = s.gameMode
+			
+			_mode = s.gameMode
 			new_achievements = []
 			new_new_achievements = "" 
 
 			log.debug(beatmapInfo.beatmapID)
-
+			'''
 			if s.passed and not UsingRelax and not UsingAutopilot and not s.mods & mods.SCOREV2:
 				try:
 					db_achievements = [ ach["achievement_id"] for ach in glob.db.fetchAll("SELECT achievement_id FROM users_achievements WHERE user_id = %s", [userID]) ]
@@ -544,7 +487,7 @@ class handler(requestsManager.asyncRequestHandler):
 						'userID': userID,
 						'message': f"An error occurred while processing your achievements, this has been reported and will be fixed soon!"
 					}))
-
+			'''
 
 			#log.debug(achievements_str)
 			# Output ranking panel only if we passed the song
@@ -569,27 +512,14 @@ class handler(requestsManager.asyncRequestHandler):
 					# Trigger bancho stats cache update
 					glob.redis.publish("peppy:update_cached_stats", userID)
 
-					# Get personal best after submitting the score
-					if UsingRelax:
-						newScoreboard = scoreboardRelax.scoreboardRelax(username, s.gameMode, beatmapInfo, False)
-					elif UsingAutopilot:
-						newScoreboard = scoreboardAuto.scoreboardAuto(username, s.gameMode, beatmapInfo, False)
-					else:
-						newScoreboard = scoreboard.scoreboard(username, s.gameMode, beatmapInfo, False)
+					newScoreboard = scoreboard.scoreboard(username, s.gameMode, beatmapInfo, False)
 
 
 					newScoreboard.setPersonalBestRank()
 					personalBestID = newScoreboard.getPersonalBest()
 					# Get rank info (current rank, pp/score to next rank, user who is 1 rank above us)
-					if UsingRelax:
-						rankInfo = leaderboardHelperRelax.getRankInfo(userID, s.gameMode)
-						currentPersonalBest = scoreRelax.score(personalBestID, newScoreboard.personalBestRank)
-					elif UsingAutopilot:
-						rankInfo = leaderboardHelperAuto.getRankInfo(userID, s.gameMode)
-						currentPersonalBest = scoreAuto.score(personalBestID, newScoreboard.personalBestRank)
-					else:
-						rankInfo = leaderboardHelper.getRankInfo(userID, s.gameMode)
-						currentPersonalBest = score.score(personalBestID, newScoreboard.personalBestRank)
+					rankInfo = leaderboardHelper.getRankInfo(userID, s.gameMode)
+					currentPersonalBest = score.score(personalBestID, newScoreboard.personalBestRank)
 
 					rankable = beatmapInfo.rankedStatus == rankedStatuses.RANKED or beatmapInfo.rankedStatus == rankedStatuses.APPROVED
 

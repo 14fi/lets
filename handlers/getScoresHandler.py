@@ -7,8 +7,6 @@ from typing import Optional
 
 from objects import beatmap
 from objects import scoreboard
-from objects import scoreboardRelax
-from objects import scoreboardAuto
 from common.constants import privileges
 from common.log import logUtils as log
 from common.ripple import userUtils
@@ -182,20 +180,9 @@ class handler(requestsManager.asyncRequestHandler):
 	@tornado.web.asynchronous
 	@tornado.gen.engine
 	def asyncGet(self) -> None:
-		#i dont understand why but if this is at the top it dosent compile
-		from common.constants import mods
+			#i dont understand why but if this is at the top it dosent compile
+			from common.constants import mods
 
-		#if the request is from a new client we use akatsuki's get_scores for performance, otherwise we use our old one for compatibility
-    		#also if its on autopilot we go to the old one aswell because akatsuki's dosent have autopilot
-		#eventually i might implement autopilot and osu!2012 on akatsuki's get scores but that code is scary
-		#also dont do it if its friends or country leaderboards because it sends bad data for some reason
-		if(
-		"vv" in self.request.arguments
-		and "mods" in self.request.arguments
-		and not int(self.get_argument("mods")) & 8192
-		and not int(self.get_argument("v")) == 3
-		and not int(self.get_argument("v")) == 4
-		):
 			"""
 			Handler for /web/osu-osz2-getscores.php
 			"""
@@ -259,7 +246,7 @@ class handler(requestsManager.asyncRequestHandler):
 
 				cache_hit = False
 				limit = 500 if privs & privileges.USER_DONOR else 150
-				rx = score_mods & mods.RELAX > 0 and mode != 3
+				rx = False
 
 				lb = None
 
@@ -331,15 +318,11 @@ class handler(requestsManager.asyncRequestHandler):
 						#setScores = True, country = lb_type == LeaderboardTypes.COUNTRY,
 						#friends = lb_type == LeaderboardTypes.FRIENDS, mods = score_mods,
 						#relax = rx
-					if rx:
-							sboard = scoreboardRelax.scoreboardRelax(
-							username, mode, bmap, setScores=True, country = lb_type == LeaderboardTypes.COUNTRY, mods=score_mods, friends = lb_type == LeaderboardTypes.FRIENDS)
-					else:
-							sboard = scoreboard.scoreboard(
-							username, mode, bmap, setScores=True, country = lb_type == LeaderboardTypes.COUNTRY, mods=score_mods, friends = lb_type == LeaderboardTypes.FRIENDS)
+						sboard = scoreboard.scoreboard(
+						username, mode, bmap, setScores=True, country = lb_type == LeaderboardTypes.COUNTRY, mods=score_mods, friends = lb_type == LeaderboardTypes.FRIENDS)
 
-					lb = LbCacheResult(sboard.totalScores, sboard.score_rows)
-					lb_add_func(*_args, lb)
+						lb = LbCacheResult(sboard.totalScores, sboard.score_rows)
+						lb_add_func(*_args, lb)
 
 				personal_best = glob.pb_cache.get_user_pb(mode, user_id, md5, rx)
 				if not personal_best:
@@ -410,15 +393,9 @@ class handler(requestsManager.asyncRequestHandler):
 				# Datadog stats
 				glob.dog.increment(f'{glob.DATADOG_PREFIX}.served_leaderboards')
 
-				
-				if rx:
-					redis_stuff = "lets:user_current_gamemode:{}".format(user_id)
-					log.debug("Setting user gamemode key {}".format(redis_stuff))
-					glob.redis.set(redis_stuff, "2")
-				else:
-					redis_stuff = "lets:user_current_gamemode:{}".format(user_id)
-					log.debug("Setting user gamemode key {}".format(redis_stuff))
-					glob.redis.set(redis_stuff, "1")
+				redis_stuff = "lets:user_current_gamemode:{}".format(user_id)
+				log.debug("Setting user gamemode key {}".format(redis_stuff))
+				glob.redis.set(redis_stuff, "1")
 					
 				time_taken_ms = (time.perf_counter() - start_time) * 1000
 				hit_or_miss = f'\x1b[0;9{2 if cache_hit else 1}mCache\x1b[0m' # i guess they never miss huh
@@ -427,120 +404,6 @@ class handler(requestsManager.asyncRequestHandler):
 				self.write(res.encode())
 			except exceptions.invalidArgumentsException:
 				self.write("error: meme")
-			except exceptions.userBannedException:
-				self.write("error: ban")
-			except exceptions.loginFailedException:
-				self.write("error: pass")
-		else:
-			try:
-				#timestart = float(time.time())
-				# Get request ip
-				ip = self.getRequestIP()
-				# Print arguments
-				if glob.debug:
-					requestsManager.printArguments(self)
-
-				# TODO: Maintenance check
-
-				# Check required arguments
-				if not requestsManager.checkArguments(
-						self.request.arguments,
-						("c", "f", "i", "m")
-				):
-					raise exceptions.invalidArgumentsException(MODULE_NAME)
-
-				# GET parameters
-				md5 = self.get_argument("c")
-				fileName = self.get_argument("f")
-				beatmapSetID = self.get_argument("i")
-				gameMode = self.get_argument("m")
-			
-				username = self.get_argument("us")
-				password = self.get_argument("ha")
-				userID = userUtils.getID(username)
-
-				# Not submitted/need update cache.
-				if md5 in glob.no_check_md5s: return self.write(f"{glob.no_check_md5s[md5]}|false")
-				#fix osu!2013 leaderboards
-				if "vv" in self.request.arguments:
-					scoreboardVersion = int(self.get_argument("vv"))
-				else:
-					scoreboardVersion = 1
-
-				if "vv" and "md5" in self.request.arguments:
-					if len(md5) != 32: 
-						log.error(f"{username} sent an invalid MD5!")
-						raise exceptions.invalidArgumentsException(MODULE_NAME)
-
-				# Login and ban check
-				if not userID: raise exceptions.loginFailedException(MODULE_NAME, userID)
-				if not verify_password(userID, password): raise exceptions.loginFailedException(MODULE_NAME, username)
-	
-				privs = userUtils.getPrivileges(userID)
-				# Scoreboard type
-				isDonor = privs  & privileges.USER_DONOR > 0
-				country = scoreboardType == 4
-				friends = scoreboardType == 3 and isDonor
-				modsFilter = -1
-				if "mods" in self.request.arguments:
-					mods = int(self.get_argument("mods"))
-				else:
-					mods = 0
-
-				#more osu!2013 leaderboard fixes
-				if "vv" in self.request.arguments and scoreboardType == 2:
-					# Mods leaderboard, replace mods (-1, every mod) with "mods" GET parameters
-					modsFilter = int(self.get_argument("mods"))
-
-				# Console output
-				fileNameShort = fileName[:32]+"..." if len(fileName) > 32 else fileName[:-4]
-
-				# Create beatmap object and set its data
-				bmap = beatmap.beatmap(md5, beatmapSetID, gameMode, fileName=fileName)
-				bmap.saveFileName(fileName)
-
-				# Create leaderboard object, link it to bmap and get all scores
-				if mods & 128:
-						redis_stuff = "lets:user_current_gamemode:{}".format(userID)
-						log.debug("Setting user gamemode key {}".format(redis_stuff))
-						glob.redis.set(redis_stuff, "2")
-						sboard = scoreboardRelax.scoreboardRelax(
-						username, gameMode, bmap, setScores=True, country=country, mods=modsFilter, friends=friends)
-				elif mods & 8192:
-						redis_stuff = "lets:user_current_gamemode:{}".format(userID)
-						log.debug("Setting user gamemode key {}".format(redis_stuff))
-						glob.redis.set(redis_stuff, "3")
-						sboard = scoreboardAuto.scoreboardAuto(
-						username, gameMode, bmap, setScores=True, country=country, mods=modsFilter, friends=friends)
-				else:
-						redis_stuff = "lets:user_current_gamemode:{}".format(userID)
-						log.debug("Setting user gamemode key {}".format(redis_stuff))
-						glob.redis.set(redis_stuff, "1")
-						sboard = scoreboard.scoreboard(
-						username, gameMode, bmap, setScores=True, country=country, mods=modsFilter, friends=friends)
-
-				# Data to return
-				data = bmap.getData(sboard.totalScores, scoreboardVersion) + sboard.getScoresData()
-				self.write(data)
-				#timeend = float(time.time())
-				#log.info(timestart - timeend)
-
-				# Hax check
-				if "a" in self.request.arguments:
-					if int(self.get_argument("a")) == 1:
-						log.warning("Found AQN folder on user {} ({})".format(username, userID), "cm")
-						userUtils.setAqn(userID)
-
-
-				# Check if it needs update or is not submitted so we dont get exploited af.
-				if bmap.rankedStatus in (rankedStatuses.NOT_SUBMITTED, rankedStatuses.NEED_UPDATE):
-					glob.add_nocheck_md5(md5, bmap.rankedStatus)
-
-				# Datadog stats
-				glob.dog.increment(glob.DATADOG_PREFIX+".served_leaderboards")
-				log.info(f"Served leaderboards for {fileNameShort} ({md5})")
-			except exceptions.invalidArgumentsException:
-				self.write("error: no")
 			except exceptions.userBannedException:
 				self.write("error: ban")
 			except exceptions.loginFailedException:
