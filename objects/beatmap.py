@@ -173,6 +173,7 @@ class beatmap:
 
 		# Make sure the beatmap is not an old one
 
+		'''
 		# Set cached data period
 		expire = int(objects.glob.conf.config["server"]["beatmapcacheexpire"])
 
@@ -187,6 +188,7 @@ class beatmap:
 		# Make sure the beatmap data in db is not too old
 		if int(expire) > 0 and time.time() > data["latest_update"]+int(expire) and not data["ranked_status_freezed"]:
 			return False
+		'''
 
 		# this is stupid, there needs to be a more reliable way to check for this.
 		# i would say this check is unneccicary, but knowing ripplecode, it probably is.
@@ -289,7 +291,18 @@ class beatmap:
 		self.difficulty = mainData["version"]
 		self.fileMD5 = md5
 		self.rankedStatus = convertRankedStatus(int(mainData["approved"]))
-		self.rankingDate = int(time.mktime(datetime.datetime.strptime(mainData["last_update"], "%Y-%m-%d %H:%M:%S").timetuple()))
+		
+		# Make maps newer than July 8, 2014 23:59:59 UTC unranked
+
+		if self.rankedStatus > 1:
+			
+			self.rankingDate = int(time.mktime(datetime.datetime.strptime(mainData["approved_date"], "%Y-%m-%d %H:%M:%S").timetuple()))
+			if self.rankingDate > 1404863999:
+				self.rankedStatus = 0
+		else:
+			self.rankingDate = int(time.mktime(datetime.datetime.strptime(mainData["last_update"], "%Y-%m-%d %H:%M:%S").timetuple()))
+
+		log.info(self.rankingDate)
 		self.beatmapID = int(mainData["beatmap_id"])
 		self.beatmapSetID = int(mainData["beatmapset_id"])
 		self.AR = float(mainData["diff_approach"])
