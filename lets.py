@@ -26,7 +26,6 @@ from handlers import apiCacheBeatmapHandler, rateHandler, changelogHandler
 from handlers import apiPPHandler
 from handlers import apiStatusHandler
 from handlers import banchoConnectHandler
-from handlers import checkUpdatesHandler
 from handlers import defaultHandler
 from handlers import downloadMapHandler
 from handlers import emptyHandler
@@ -36,7 +35,6 @@ from handlers import getFullReplayHandlerAuto
 from handlers import getReplayHandler
 from handlers import getScoresHandler
 from handlers import getScreenshotHandler
-from handlers import getSeasonalHandler
 from handlers import loadTestHandler
 from handlers import mapsHandler
 from handlers import inGameRegistrationHandler
@@ -44,13 +42,11 @@ from handlers import getFullErrorHandler
 from handlers import osuErrorHandler
 from handlers import osuSearchHandler
 from handlers import osuSearchSetHandler
-from handlers import osuSessionHandler
 from handlers import redirectHandler
+from handlers import lastFMHandler
 from handlers import submitModularHandler
 from handlers import uploadScreenshotHandler
 from handlers import commentHandler
-from handlers import lastFMHandler
-from handlers import coinsHandler
 from handlers import difficultyRatingHandler
 from handlers import osuGetFriends
 from handlers import getFavouriteHandler
@@ -69,21 +65,17 @@ def make_app():
 		(r"/web/bancho_connect.php", banchoConnectHandler.handler),
 		(r"/web/osu-osz2-getscores.php", getScoresHandler.handler),
 		(r"/web/osu-submit-modular.php", submitModularHandler.handler),
-		(r"/web/osu-submit-modular-selector.php", submitModularHandler.handler),
-		(r"/web/osu-submit-modular-selector-rxcharts.php", submitModularHandler.handler),
 		(r"/web/osu-getreplay.php", getReplayHandler.handler),
-		(r"/web/osu-getseasonal.php", getSeasonalHandler.handler),
 		(r"/web/osu-screenshot.php", uploadScreenshotHandler.handler),
 		(r"/web/osu-search.php", osuSearchHandler.handler),
 		(r"/web/osu-search-set.php", osuSearchSetHandler.handler),
-		(r"/web/osu-session.php", osuSessionHandler.handler),
-		(r"/web/check-updates.php", checkUpdatesHandler.handler),
 		(r"/web/osu-error.php", osuErrorHandler.handler),
 		(r"/web/osu-comment.php", commentHandler.handler),
 		(r"/p/changelog", changelogHandler.handler),
 		(r"/web/changelog.php", changelogHandler.handler),
 		(r"/home/changelog", changelogHandler.handler),
 		(r"/web/osu-rate.php", rateHandler.handler),
+		(r"/web/lastfm.php", lastFMHandler.handler),
 		(r"/ss/(.*)", getScreenshotHandler.handler),
 		(r"/web/maps/(.*)", mapsHandler.handler),
 		(r"/d/(.*)", downloadMapHandler.handler),
@@ -99,8 +91,6 @@ def make_app():
 		(r"/letsapi/v1/status", apiStatusHandler.handler),
 		(r"/letsapi/v1/pp", apiPPHandler.handler),
 		(r"/letsapi/v1/cacheBeatmap", apiCacheBeatmapHandler.handler),
-		(r"/web/lastfm.php", lastFMHandler.handler),
-		(r"/web/coins.php", coinsHandler.handler),
 
 		(r"/web/osu-getfriends.php", osuGetFriends.handler),
 		(r"/web/osu-addfavourite.php", setFavouriteHandler.handler),

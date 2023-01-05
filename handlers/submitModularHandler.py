@@ -54,8 +54,6 @@ class handler(requestsManager.asyncRequestHandler):
 	@tornado.gen.engine
 	#@sentry.captureTornado
 	def asyncPost(self):
-		rxCharts = self.request.uri == "/web/osu-submit-modular-rxcharts-selector.php"
-		newCharts = self.request.uri == "/web/osu-submit-modular-selector.php"
 		try:
 			# Resend the score in case of unhandled exceptions
 			keepSending = True
@@ -281,20 +279,14 @@ class handler(requestsManager.asyncRequestHandler):
 						submit_flags.append(f"Score was submitted with mania score > 1000000")
 
 					if s.completed == 3:
-						if UsingRelax or UsingAutopilot:
-							notify_pp = 1000
-							restrict_pp = 1900
-							restrict_all_mod_pp = 800
-							restrict_fl_pp = 1000
-						else:
-							notify_pp = 400
-							restrict_pp = 1100
-							restrict_all_mod_pp = 600
-							restrict_fl_pp = 800
-
-						mode_str = "relax" if UsingRelax else "autopilot" if UsingAutopilot else "normal"
+						#TODO: should these be changed since we are using an older pp calc?
+						notify_pp = 400
+						restrict_pp = 1100
+						restrict_all_mod_pp = 600
+						restrict_fl_pp = 800
+						
 						if (s.pp >= notify_pp) and not no_pp_limit:
-							submit_flags.append(f"Score was submitted with pp above " + mode_str + " limit of " + str(int(s.pp)))
+							submit_flags.append(f"Score was submitted with pp above limit of " + str(int(s.pp)))
 							if(s.pp >= restrict_pp):
 								restrict_user = True
 								pp_limit_broken = True
@@ -352,31 +344,16 @@ class handler(requestsManager.asyncRequestHandler):
 			log.debug("Getting personal best (if required)")
 			if s.passed and s.oldPersonalBest > 0:
 				log.debug("Getting Personal Best Cache")
-				if UsingRelax:
-					oldPersonalBestRank = glob.personalBestCacheRX.get(userID, s.fileMd5)
-				elif UsingAutopilot:
-					oldPersonalBestRank = glob.personalBestCacheAP.get(userID, s.fileMd5)
-				else:
-					oldPersonalBestRank = glob.personalBestCache.get(userID, s.fileMd5)					
+				oldPersonalBestRank = glob.personalBestCache.get(userID, s.fileMd5)					
 				if oldPersonalBestRank == 0:
 					log.debug("We don't have personal best cache, calculating personal best.")
 					# oldPersonalBestRank not found in cache, get it from db through a scoreboard object
-					if UsingRelax:
-						oldScoreboard = scoreboardRelax.scoreboardRelax(username, s.gameMode, beatmapInfo, False)
-					elif UsingAutopilot:
-						oldScoreboard = scoreboardAuto.scoreboardAuto(username, s.gameMode, beatmapInfo, False)
-					else:
-						oldScoreboard = scoreboard.scoreboard(username, s.gameMode, beatmapInfo, False)
+					oldScoreboard = scoreboard.scoreboard(username, s.gameMode, beatmapInfo, False)
 					oldScoreboard.setPersonalBestRank()
 					oldPersonalBestRank = max(oldScoreboard.personalBestRank, 0)
 
 				log.debug("Calculating old personal best")
-				if UsingRelax:
-					oldPersonalBest = scoreRelax.score(s.oldPersonalBest, oldPersonalBestRank)
-				elif UsingAutopilot:
-					oldPersonalBest = scoreAuto.score(s.oldPersonalBest, oldPersonalBestRank)
-				else:
-					oldPersonalBest = score.score(s.oldPersonalBest, oldPersonalBestRank)
+				oldPersonalBest = score.score(s.oldPersonalBest, oldPersonalBestRank)
 			else:
 				oldPersonalBestRank = 0
 				oldPersonalBest = None
@@ -432,58 +409,18 @@ class handler(requestsManager.asyncRequestHandler):
 			keepSending = False
 
 			if s.completed == 3:
-				relax = s.mods & mods.RELAX > 0
-				lb_cache = glob.lb_cache.get_lb_cache(s.gameMode, relax)
+				lb_cache = glob.lb_cache.get_lb_cache(s.gameMode, False)
 				glob.lb_cache.clear_lb_cache(lb_cache, beatmapInfo.fileMD5)
-				glob.pb_cache.del_user_pb(s.gameMode, userID, beatmapInfo.fileMD5, relax)
+				glob.pb_cache.del_user_pb(s.gameMode, userID, beatmapInfo.fileMD5, False)
 
 
 			# At the end, check achievements
 			
 			_mode = s.gameMode
-			new_achievements = []
 			new_new_achievements = "" 
 
-			log.debug(beatmapInfo.beatmapID)
-			'''
-			if s.passed and not UsingRelax and not UsingAutopilot and not s.mods & mods.SCOREV2:
-				try:
-					db_achievements = [ ach["achievement_id"] for ach in glob.db.fetchAll("SELECT achievement_id FROM users_achievements WHERE user_id = %s", [userID]) ]
-					
-					#get extra data for achievements
-					achievementData = achievementsHelper.achievementData(userID, beatmapInfo, s, db_achievements)
+			#TODO: add achievements
 
-					for ach in glob.achievements:
-						if ach.id in db_achievements:
-							continue
-						if ach.cond(s, _mode, newUserStats, beatmapInfo, oldUserStats, achievementData):
-							userUtils.unlockAchievement(userID, ach.id)
-							new_achievements.append(ach.full_name)
-							log.debug(new_achievements)
-						
-					new_new_achievements = "" 
-					for achievement in new_achievements: 
-						#TODO: improve this code dumbass
-						if new_new_achievements != "":
-							new_new_achievements = f"{new_new_achievements}/{achievement}" 
-						else:
-							new_new_achievements = achievement
-
-					log.debug(new_new_achievements)
-				except:
-					submit_flags.append("Error while processing achievements at time {}!\n```{}\n{}```".format(int(time.time()), sys.exc_info(), traceback.format_exc()))
-					glob.redis.publish("peppy:notification", json.dumps({
-						'userID': userID,
-						'message': f"An error occurred while processing your achievements, this has been reported and will be fixed soon!"
-					}))
-			'''
-
-			#log.debug(achievements_str)
-			# Output ranking panel only if we passed the song
-			# and we got valid beatmap info from db
-			# also, there is no reason to send a full ranking panel for relax unless its a custom client.
-
-			#TODO: is there a better way to do this?
 			if beatmapInfo is not None and beatmapInfo != False and s.passed:
 				log.debug("Started building ranking panel")
 
@@ -632,23 +569,6 @@ class handler(requestsManager.asyncRequestHandler):
 			glob.db.execute(f"DELETE FROM first_places WHERE beatmap_md5 = %s AND mode = %s AND relax = %s", [s.fileMd5, s.gameMode, rx_type])
 			log.debug("first place query done")
 
-			#increment the playcount if the map is ranked exclusively on this server and it was ranked less than 1 week ago
-			#this is used for most popular maps on hanayo
-			if s.passed:
-				rankmap = glob.db.fetch(f"SELECT * FROM ranked_beatmaps WHERE beatmapsetid = %s ORDER BY id LIMIT 1", [beatmapInfo.beatmapSetID])
-				if rankmap: #check if we got something
-					#increment total playcount
-					glob.redis.incr(f"beatmaps:total_playcount:{beatmapInfo.beatmapSetID}")
-					ranked_time = str(rankmap["ranked_time"])
-					if int(ranked_time) > int(time.time()) - 604800: #if the map is newer than 1 week
-						#increment first week playcount
-						glob.redis.incr(f"beatmaps:week_playcount:{beatmapInfo.beatmapSetID}")
-					else:
-						#set the map as old if not already
-						if rankmap["old"] != 1:
-							glob.redis.set(f"beatmaps:old:{beatmapInfo.beatmapSetID}", "1")
-							glob.db.execute(f"UPDATE ranked_beatmaps SET old = 1 WHERE beatmapsetid = %s", [beatmapInfo.beatmapSetID])
-
 			# Save replay for all passed scores, do it after the score is submitted because it can take a long time
 			# Make sure the score has an id as well (duplicated?, query error?)
 			no_replay = False
@@ -673,161 +593,7 @@ class handler(requestsManager.asyncRequestHandler):
 
 			log.debug("submit modular complete, performing anticheat checks if required")
 			if not restricted and s.completed == 3 and not no_replay == True or glob.debug and s.passed and not no_replay == True and not restricted:
-			#if s.passed:
-				cheatedscoreurl = "ihatepython"
-				if UsingRelax:
-					cheatedreplayurl = ("{}/web/replays_relax/{}".format(glob.conf.config["server"]["serverurl"], str(s.scoreID)))
-				else:
-					cheatedreplayurl = ("{}/web/replays/{}".format(glob.conf.config["server"]["serverurl"], str(s.scoreID)))
-				'''
-				circleguard check by github.com/SakuruWasTaken
-				Feel free to use this code, but please don't remove this comment.
-				Some of this code is taken from osuthailand's LETS (thanks aoba)
-				'''
-				log.debug("begin circleguard checks")
-
-				#TODO: clean up this code
-				#welcome to if hell
-				'''
-				if s.gameMode == gameModes.STD and not UsingAutopilot and s.pp > 3 or s.gameMode == gameModes.STD and not UsingAutopilot and glob.debug or s.gameMode == gameModes.STD and not UsingAutopilot and userID == 1003:
-					#dont allow loved or unranked because some maps like aspire break circleguard
-					if beatmapInfo.rankedStatus == rankedStatuses.RANKED or beatmapInfo.rankedStatus == rankedStatuses.QUALIFIED or beatmapInfo.rankedStatus == rankedStatuses.APPROVED:
-						if not UsingAutopilot and s.scoreID > 0:
-							#log.info("cg parsing")
-							#i hate python
-							frametime = 100
-							unstablerate = 100
-							cgparse_exception = False
-							if UsingRelax:
-								RPBUILD = replayHelperRelax.buildFullReplay
-							else:
-								RPBUILD = replayHelper.buildFullReplay
-							full_replay = RPBUILD(s.scoreID, rawReplay=self.request.files["score"][0]["body"])
-							with open(f"{replays_path}{replay_mode_full}/replay_{s.scoreID}.osr", "wb") as rdf:
-								rdf.write(full_replay)
-							try:
-								
-								#TODO: re-enable this when this pull request gets merged
-								#https://github.com/circleguard/circlecore/pull/153
-								
-								if UsingRelax:
-									cgparsed = circleparse.parse_replay_file("{}_relax_full/replay_{}.osr".format(replays_path, (s.scoreID)))
-									replay = ReplayPath("{}_relax_full/replay_{}.osr".format(replays_path, (s.scoreID)))
-								else:									
-									cgparsed = circleparse.parse_replay_file("{}_full/replay_{}.osr".format(replays_path, (s.scoreID)))
-									replay = ReplayPath("{}_full/replay_{}.osr".format(replays_path, (s.scoreID)))
-							except:
-								submit_flags.append(f"CIRCLEGUARD ERROR: {sys.exc_info()}\n{traceback.format_exc()}")
-								#don't cause any more exceptions
-								cgparse_exception = True
-		
-
-							flagged = False
-							#TODO: check for replay hax if pp above certain threshold (maybe 80?)
-							#TODO: move frametime graph generation into a function
-							#these log.infos are me investigating an intermittent issue
-							#log.info("initializing circleguard")
-							cg = Circleguard(glob.conf.config["osuapi"]["apikey"], db_path=".data/circleguard_cache.db")
-							#log.info("checking frametime")
-							try:
-								if cgparse_exception != True:
-									frametime = cg.frametime(replay)
-									if not UsingRelax:
-										log.info("checking cvur")
-										unstablerate = int(cg.ur(replay))
-									else:
-										unstablerate = "N/A"
-								else:
-									submit_flags.append("skipping circleguard checks due to cgparse exception")
-							except:
-								submit_flags.append(f"CIRCLEGUARD ERROR: {sys.exc_info()}\n{traceback.format_exc()}")
-
-
-							if frametime < 14.6 and frametime > 1.8 and not flagged == True and not UsingRelax:
-								graph = cg.frametime_graph(replay, cv=True, figure=None, show_expected_frametime=True)
-								found = False
-								screenshotID = ""
-								while not found:
-									screenshotID = generalUtils.randomString(8)
-									if not os.path.isfile("{}/{}.jpg".format(glob.conf.config["server"]["screenshotspath"], screenshotID)):
-										found = True
-									with open("{}/{}.jpg".format(glob.conf.config["server"]["screenshotspath"], screenshotID), "w") as f:
-										pass
-									graph.savefig("{}/{}.jpg".format(glob.conf.config["server"]["screenshotspath"], screenshotID))
-								webhook = Webhook(glob.conf.config["discord"]["ahook"],
-								color=0xc32c74,
-								footer="stupid anticheat")
-								if glob.conf.config["discord"]["enable"]:
-									webhook.set_title(title=f"Catched some cheater {username} ({userID})")
-									webhook.set_desc(f'potentially timewarped: frametime lower than 14, sent replay has frametime of {frametime}, replay link: {cheatedreplayurl}, cvUR: {unstablerate}.  Please check the graph because this can easily false-flag, for more information check this link. https://github.com/circleguard/circleguard/wiki/Frametime-Tutorial')
-									try:
-										webhook.set_image("{}/ss/{}.jpg".format(glob.conf.config["server"]["publiclets"], screenshotID))
-									except:
-										pass
-
-									webhook.set_footer(text="ghostbusters")
-									webhook.post()
-									flagged = True
-							if not UsingRelax and not flagged == True:
-								allowedcvur = glob.db.fetch("SELECT allowedcvur FROM users WHERE id = %s", [userID])
-								allowedcvur = int(allowedcvur["allowedcvur"])
-								if unstablerate != 0:
-									if unstablerate < 65 and allowedcvur == -1 or allowedcvur != -1 and unstablerate < allowedcvur:
-										gotRestricted = False
-										if unstablerate < 35:
-											restrict_user = True
-											gotRestricted = True
-											pp_limit_broken = True
-										graph = cg.frametime_graph(replay, cv=True, figure=None, show_expected_frametime=True)
-										found = False
-										screenshotID = ""
-										while not found:
-											screenshotID = generalUtils.randomString(8)
-											if not os.path.isfile("{}/{}.jpg".format(glob.conf.config["server"]["screenshotspath"], screenshotID)):
-												found = True
-											with open("{}/{}.jpg".format(glob.conf.config["server"]["screenshotspath"], screenshotID), "w") as f:
-												pass
-											graph.savefig("{}/{}.jpg".format(glob.conf.config["server"]["screenshotspath"], screenshotID))
-											webhook = Webhook(glob.conf.config["discord"]["ahook"],
-										color=0xc32c74,
-										footer="stupid anticheat")
-										if glob.conf.config["discord"]["enable"]:
-											webhook.set_title(title=f"Catched some cheater {username} ({userID})")
-											if gotRestricted == True:
-												webhook.set_desc(f'potentially timewarped: cvUR is lower than 35 and got restricted!, sent replay has cvUR of {unstablerate}, replay link: {cheatedreplayurl}, frametime: {frametime}.')
-											else:
-												webhook.set_desc(f'potentially timewarped: cvUR is lower than 80 (or their max cvUR), sent replay has cvUR of {unstablerate}, replay link: {cheatedreplayurl}, frametime: {frametime}.')
-											try:
-												webhook.set_image("{}/ss/{}.jpg".format(glob.conf.config["server"]["publiclets"], screenshotID))
-											except:
-												pass
-											webhook.set_footer(text="ghostbusters")
-											webhook.post()
-					'''
-
 				log.debug("getting data for anticheat checks")
-
-				nost = False
-				if "st" in self.request.arguments:
-					st = self.get_argument("st")
-				else:
-					nost = True
-
-				log.debug("begin regular anticheat checks")
-				# thank you very much mikhail kurikku
-				if not nost:
-					if failTime and st:
-						if beatmapInfo.hitLength != 0 and int(failTime) == 0:
-							hitLength = beatmapInfo.hitLength // 1.5 if (s.mods & mods.DOUBLETIME) > 0 else beatmapInfo.hitLength // 0.75 if (s.mods & mods.HALFTIME) > 0 else beatmapInfo.hitLength
-							if (int(st)//1000) < int(hitLength):
-								submit_flags.append(f"Score was submitted with map time of {int(st)//1000} seconds when map length is {hitLength}")
-				
-				if "s" in self.request.arguments and "sbk" in self.request.arguments and nost != True:
-					log.debug("doing checksum check")
-					securityHash = aeshelper.decryptRinjdael(aeskey, iv, self.get_argument("s"), True).strip()		
-					isScoreVerfied = kotrikhelper.verifyScoreData(scoreData, securityHash, self.get_argument("sbk", ""))
-					if not isScoreVerfied:
-						submit_flags.append(f"Score was submitted with incorrect checksum, likely the result of modifying values in osu!'s memory.")
 
 				if "i" in self.request.files:
 					if len(self.request.files["i"][0]["body"]) > 2:
@@ -884,17 +650,6 @@ class handler(requestsManager.asyncRequestHandler):
 					if bad_flags & 1 << 12: submit_flags.append("bad flag: [1 << 12] Raw mouse discrepancy, this ocasionally false-flags")
 					if bad_flags & 1 << 13: submit_flags.append("bad flag: [1 << 13] Raw keyboard discrepancy, this ocasionally false-flags")
 
-
-
-			#thank you cmyui you inspired me to clean up my code
-			if not restricted:
-				if restrict_user == True:
-					userUtils.restrict(userID)
-					if pp_limit_broken == True:
-						glob.redis.publish("peppy:notification", json.dumps({
-								'userID': userID,
-								'message': f"Hey there, it looks like you've just hit a limit on your score and got automatically restricted, if you're legit, please join the discord (i'm sorry for forcing you to use discord, i will come up with a better solution soon) and give one of the mods a yell, they'll help you out with getting this removed."
-							}))
 				if submit_flags != []:
 					log.warning('\n\n'.join([
 						f'Ghostbusters: [{username}](https://osuhow.cf/u/{userID}) was flagged during score submission.',

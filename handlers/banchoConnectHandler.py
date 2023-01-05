@@ -58,24 +58,6 @@ class handler(requestsManager.asyncRequestHandler):
 			# Update latest activity
 			userUtils.updateLatestActivity(userID)
 
-			if "x" in self.request.arguments:
-				if len(self.get_argument("x")) > 4:
-					'''
-					When "x" is found in the arguments, it means two things,
-					1. "Monitor" has just been triggered (desktop screenshot """"""anticheat"""""")
-					2. Files named "LL" (used by *a certain cheat website* for login data) have been found on the users computer.
-					This should *NEVER* happen, but just incase it does, i'll send a notification to the discord.
-					'''
-					webhook = Webhook(glob.conf.config["discord"]["ahook"], #send shit to discord hq
-					color=0xc32c74,
-					footer="stupid anticheat")
-					if glob.conf.config["discord"]["enable"]:
-							webhook.set_title(title=f"Catched some cheater {username} ({userID})")
-							webhook.set_desc(f'They just tried to send bancho_monitor and they have LL files!')
-							webhook.set_footer(text="peppycode anticheat")
-							webhook.post()
-
-
 			# Get country and output it
 			country = glob.db.fetch("SELECT country FROM users_stats WHERE id = %s", [userID])["country"]
 			self.write(country)
