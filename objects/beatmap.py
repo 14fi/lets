@@ -301,8 +301,7 @@ class beatmap:
 				self.rankedStatus = 0
 		else:
 			self.rankingDate = int(time.mktime(datetime.datetime.strptime(mainData["last_update"], "%Y-%m-%d %H:%M:%S").timetuple()))
-
-		log.info(self.rankingDate)
+			
 		self.beatmapID = int(mainData["beatmap_id"])
 		self.beatmapSetID = int(mainData["beatmapset_id"])
 		self.AR = float(mainData["diff_approach"])

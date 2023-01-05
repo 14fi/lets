@@ -65,22 +65,16 @@ class handler(requestsManager.asyncRequestHandler):
 			# Print arguments
 			if glob.debug:
 				requestsManager.printArguments(self)
-			old_osu = False
-			if not requestsManager.checkArguments(self.request.arguments, ["score", "iv", "pass", "x", "s", "osuver"]):
-				old_osu = True
-				if not requestsManager.checkArguments(self.request.arguments, ["score", "iv", "pass"]):
-					raise exceptions.invalidArgumentsException(MODULE_NAME)
+			old_osu = True
+			if not requestsManager.checkArguments(self.request.arguments, ["score", "iv", "pass", "fs", "st", "c1", "s"]):
+				raise exceptions.invalidArgumentsException(MODULE_NAME)
 
 			# Get parameters and IP
 			scoreDataEnc = self.get_argument("score")
 			iv = self.get_argument("iv")
 			password = self.get_argument("pass")
 			ip = self.getRequestIP()
-			if glob.conf.extra["lets"]["submit"]["ignore-x-flag"]:
-				quit_ = 0
-			else:
-				if old_osu != True:
-					quit_ = self.get_argument("x") == "1"
+			quit_ = 0
 			try:
 				failTime = max(0, int(self.get_argument("ft", 0)))
 			except ValueError:
@@ -95,13 +89,8 @@ class handler(requestsManager.asyncRequestHandler):
 				bmk = None
 				bml = None
 
-			# Get right AES Key
-			if "osuver" in self.request.arguments:
-				aeskey = "osu!-scoreburgr---------{}".format(self.get_argument("osuver"))
-				OsuVer = self.get_argument("osuver")
-			else:
-				aeskey = "h89f2-890h2h89b34g-h80g134n90133"
-				OsuVer = "Really Old"
+			aeskey = "h89f2-890h2h89b34g-h80g134n90133"
+			OsuVer = "Really Old"
 
 			# Get score data
 			log.debug("Decrypting score data...")
@@ -495,153 +484,88 @@ class handler(requestsManager.asyncRequestHandler):
 			# also, there is no reason to send a full ranking panel for relax unless its a custom client.
 
 			#TODO: is there a better way to do this?
-			if(
-			beatmapInfo is not None
-			and beatmapInfo != False
-			and s.passed
-			and not UsingRelax
-			and not UsingAutopilot
-			or beatmapInfo is not None 
-			and beatmapInfo != False 
-			and s.passed 
-			and rxCharts
-			):
-				if not UsingRelax and not UsingAutopilot or rxCharts:
-					log.debug("Started building ranking panel")
+			if beatmapInfo is not None and beatmapInfo != False and s.passed:
+				log.debug("Started building ranking panel")
 
-					# Trigger bancho stats cache update
-					glob.redis.publish("peppy:update_cached_stats", userID)
+				# Trigger bancho stats cache update
+				glob.redis.publish("peppy:update_cached_stats", userID)
 
-					newScoreboard = scoreboard.scoreboard(username, s.gameMode, beatmapInfo, False)
+				newScoreboard = scoreboard.scoreboard(username, s.gameMode, beatmapInfo, False)
 
 
-					newScoreboard.setPersonalBestRank()
-					personalBestID = newScoreboard.getPersonalBest()
-					# Get rank info (current rank, pp/score to next rank, user who is 1 rank above us)
-					rankInfo = leaderboardHelper.getRankInfo(userID, s.gameMode)
-					currentPersonalBest = score.score(personalBestID, newScoreboard.personalBestRank)
+				newScoreboard.setPersonalBestRank()
+				personalBestID = newScoreboard.getPersonalBest()
+				# Get rank info (current rank, pp/score to next rank, user who is 1 rank above us)
+				rankInfo = leaderboardHelper.getRankInfo(userID, s.gameMode)
+				currentPersonalBest = score.score(personalBestID, newScoreboard.personalBestRank)
 
-					rankable = beatmapInfo.rankedStatus == rankedStatuses.RANKED or beatmapInfo.rankedStatus == rankedStatuses.APPROVED
+				rankable = beatmapInfo.rankedStatus == rankedStatuses.RANKED or beatmapInfo.rankedStatus == rankedStatuses.APPROVED
 
-					# Output dictionary
-					if newCharts:
-						log.debug("Using new charts")
-						dicts = [
-							collections.OrderedDict([
-								("beatmapId", beatmapInfo.beatmapID),
-								("beatmapSetId", beatmapInfo.beatmapSetID),
-								("beatmapPlaycount", beatmapInfo.playcount),
-								("beatmapPasscount", beatmapInfo.passcount),
-								("approvedDate", beatmapInfo.rankingDate)
-							]),
-							collections.OrderedDict([
-								('chartId', "beatmap"),
-								('chartUrl', f"https://osuhow.cf/b/{beatmapInfo.beatmapID}"),
-								('chartName', "Beatmap Ranking"),
-								('rankBefore', oldPersonalBestRank if oldPersonalBestRank > 0 else ""),
-								('rankAfter', newScoreboard.personalBestRank),
-								('maxComboBefore', oldPersonalBest.maxCombo if oldPersonalBest else ""),
-								('maxComboAfter', s.maxCombo),
-								('rankedScoreBefore', oldPersonalBest.score if oldPersonalBest else ""),
-								('rankedScoreAfter', s.score),
-								('accuracyBefore', round(oldPersonalBest.accuracy*100, 2) if oldPersonalBest else ""),
-								('accuracyAfter', round(s.accuracy*100, 2)),
-								('ppBefore', oldPersonalBest.pp if oldPersonalBest and rankable else ""),
-								('ppAfter', s.pp if rankable else ""),
-								('onlineScoreId', s.scoreID)
-							]),
-							collections.OrderedDict([
-								("chartId", "overall"),
-								('chartName', 'Overall Ranking'),
-								('chartUrl', f'https://osuhow.cf/u/{s.playerUserID}'),
-								("chartEndDate", ""),
-								("beatmapRankingBefore", oldPersonalBestRank),
-								("beatmapRankingAfter", newScoreboard.personalBestRank),
-								("rankedScoreBefore", oldUserStats["rankedScore"]),
-								#bad fix for negative ranked score
-								("rankedScoreAfter", newUserStats["rankedScore"] if s.completed == 3 else oldUserStats["rankedScore"]),
-								("totalScoreBefore", oldUserStats["totalScore"]),
-								("totalScoreAfter", newUserStats["totalScore"]),
-								("playCountBefore", newUserStats["playcount"]),
-								("accuracyBefore", float(oldUserStats["accuracy"])),
-								("accuracyAfter", float(newUserStats["accuracy"])),
-								('ppBefore', oldUserStats["pp"]),
-								('ppAfter', newUserStats["pp"]),
-								("rankBefore", oldRank),
-								("rankAfter", rankInfo["currentRank"]),
-								("toNextRank", rankInfo["difference"]),
-								("toNextRankUser", rankInfo["nextUsername"]),
-								("achievements", ""),
-								("achievements-new", new_new_achievements),
-								("onlineScoreId", s.scoreID)
-							])
-						]
-					else:
-						log.debug("Using old charts")
-						dicts = [
-							collections.OrderedDict([
-								("beatmapId", beatmapInfo.beatmapID),
-								("beatmapSetId", beatmapInfo.beatmapSetID),
-								("beatmapPlaycount", beatmapInfo.playcount),
-								("beatmapPasscount", beatmapInfo.passcount),
-								("approvedDate", beatmapInfo.rankingDate)
-							]),
-							collections.OrderedDict([
-								("chartId", "overall"),
-								("chartName", "Overall Ranking"),
-								("chartEndDate", ""),
-								("beatmapRankingBefore", oldPersonalBestRank),
-								("beatmapRankingAfter", newScoreboard.personalBestRank),
-								("rankedScoreBefore", oldUserStats["rankedScore"]),
-								#bad fix for negative ranked score
-								("rankedScoreAfter", newUserStats["rankedScore"] if s.completed == 3 else oldUserStats["rankedScore"]),
-								("totalScoreBefore", oldUserStats["totalScore"]),
-								("totalScoreAfter", newUserStats["totalScore"]),
-								("playCountBefore", newUserStats["playcount"]),
-								("accuracyBefore", float(oldUserStats["accuracy"])/100),
-								("accuracyAfter", float(newUserStats["accuracy"])/100),
-								("rankBefore", oldRank),
-								("rankAfter", rankInfo["currentRank"]),
-								("toNextRank", rankInfo["difference"]),
-								("toNextRankUser", rankInfo["nextUsername"]),
-								("achievements", ""),
-								("achievements-new", new_new_achievements),
-								("onlineScoreId", s.scoreID)
-							])
-						]				
-					output = "\n".join(zingonify(x) for x in dicts)
-					#log.info(secret.achievements.utils.achievements_response(new_achievements))
-					# Some debug messages
-					log.debug("Generated output for online ranking screen!")
-					log.debug(output)
+				# Output dictionary
+				log.debug("Using old charts")
+				dicts = [
+					collections.OrderedDict([
+						("beatmapId", beatmapInfo.beatmapID),
+						("beatmapSetId", beatmapInfo.beatmapSetID),
+						("beatmapPlaycount", beatmapInfo.playcount),
+						("beatmapPasscount", beatmapInfo.passcount),
+						("approvedDate", beatmapInfo.rankingDate)
+					]),
+					collections.OrderedDict([
+						("chartId", "overall"),
+						("chartName", "Overall Ranking"),
+						("chartEndDate", ""),
+						("beatmapRankingBefore", oldPersonalBestRank),
+						("beatmapRankingAfter", newScoreboard.personalBestRank),
+						("rankedScoreBefore", oldUserStats["rankedScore"]),
+						#bad fix for negative ranked score
+						("rankedScoreAfter", newUserStats["rankedScore"] if s.completed == 3 else oldUserStats["rankedScore"]),
+						("totalScoreBefore", oldUserStats["totalScore"]),
+						("totalScoreAfter", newUserStats["totalScore"]),
+						("playCountBefore", newUserStats["playcount"]),
+						("accuracyBefore", float(oldUserStats["accuracy"])/100),
+						("accuracyAfter", float(newUserStats["accuracy"])/100),
+						("rankBefore", oldRank),
+						("rankAfter", rankInfo["currentRank"]),
+						("toNextRank", rankInfo["difference"]),
+						("toNextRankUser", rankInfo["nextUsername"]),
+						("achievements", ""),
+						("achievements-new", new_new_achievements),
+						("onlineScoreId", s.scoreID)
+					])
+				]				
+				output = "\n".join(zingonify(x) for x in dicts)
+				#log.info(secret.achievements.utils.achievements_response(new_achievements))
+				# Some debug messages
+				log.debug("Generated output for online ranking screen!")
+				log.debug(output)
 
-					# How many PP you got and did you gain any ranks?
-					ppGained = newUserStats["pp"] - oldUserStats["pp"]
-					gainedRanks = oldRank - rankInfo["currentRank"]
+				# How many PP you got and did you gain any ranks?
+				ppGained = newUserStats["pp"] - oldUserStats["pp"]
+				gainedRanks = oldRank - rankInfo["currentRank"]
 
-					# Get info about score if they passed the map (Ranked)
-					userStats = userUtils.getUserStats(userID, s.gameMode)
+				# Get info about score if they passed the map (Ranked)
+				userStats = userUtils.getUserStats(userID, s.gameMode)
 
-					# Send message to #announce if we're rank #1
-					if newScoreboard.personalBestRank == 1 and s.completed == 3 and not restricted:
-						annmsg = "[{}] [{}/{}u/{} {}] achieved rank #1 on [https://osuhow.cf/b/{} {}] ({}) with {}pp".format(
-							game_mode_str,
-							glob.conf.config["server"]["serverurl"],
-							ProfAppend,
-							userID,
-							username.encode().decode("ASCII", "ignore"),
-							beatmapInfo.beatmapID,
-							beatmapInfo.songName.encode().decode("ASCII", "ignore"),
-							gameModes.getGamemodeFull(s.gameMode),
-							int(s.pp)
-							)
-						params = urlencode({"k": glob.conf.config["server"]["apikey"], "to": "#announce", "msg": annmsg})
-						requests.get("{}/api/v1/fokabotMessage?{}".format(glob.conf.config["server"]["banchourl"], params))
+				# Send message to #announce if we're rank #1
+				if newScoreboard.personalBestRank == 1 and s.completed == 3 and not restricted:
+					annmsg = "[{}] [{}/{}u/{} {}] achieved rank #1 on [https://osuhow.cf/b/{} {}] ({}) with {}pp".format(
+						game_mode_str,
+						glob.conf.config["server"]["serverurl"],
+						ProfAppend,
+						userID,
+						username.encode().decode("ASCII", "ignore"),
+						beatmapInfo.beatmapID,
+						beatmapInfo.songName.encode().decode("ASCII", "ignore"),
+						gameModes.getGamemodeFull(s.gameMode),
+						int(s.pp)
+					)
+					params = urlencode({"k": glob.conf.config["server"]["apikey"], "to": "#announce", "msg": annmsg})
+					requests.get("{}/api/v1/fokabotMessage?{}".format(glob.conf.config["server"]["banchourl"], params))
 
-					# Write message to client
-					self.write(output)
-					log.debug("sent message to client")
-
+				# Write message to client
+				self.write(output)
+				log.debug("sent message to client")
 
 			else:
 				#thank you skyloc (please come back i miss you)
@@ -934,40 +858,12 @@ class handler(requestsManager.asyncRequestHandler):
 								webhook.set_desc(f"They sent a screenshot with their score submittion, shown below, this happens when osu! detects fl remover, replay link: {cheatedreplayurl}")
 								webhook.set_footer(text="ghostbusters")
 								webhook.set_image("{}/ss/{}.jpg".format(glob.conf.config["server"]["publiclets"], screenshotID))
-								webhook.post()
-
-				log.debug("checking hqosu")
-				if "osuver" in self.request.arguments and old_osu != True:
-					osuverpog = self.get_argument("osuver")
-					if int(osuverpog) > 20200910 or int(osuverpog) == 20190716:
-						if not "st" in self.request.arguments:
-							submit_flags.append(f"Score was submitted without st flag on a client that should have one, likely osu! is hqosu!legacy")
-
-				if "osuver" in self.request.arguments:
-					try:
-						#detect cheat clients that allow changing osuver.
-						#TODO: improve this code and make it work on cutting edge and beta and stuff
-						osuverpog = self.get_argument("osuver")
-						log.debug(int(osuverpog))
-						gaming = aobaHelper.getOsuVer(userID).split(".")
-						gamer = gaming[0].strip()
-						gamed = gamer.lstrip("b")
-						brazil = int(gamed)
-						log.debug(brazil) # come to brazil you motherfucker
-						if brazil != int(osuverpog):
-							submit_flags.append(f"Score was submitted with osuver that does not match the one sent at login, Login sent: '{brazil}', Submit sent: '{osuverpog}'")
-					except:
-						pass
-					
+								webhook.post()		
 
 				elif bmk != bml:
 					# restrict_user = True
 					submit_flags.append(f"Score was submitted with different bmk/bml")
-
-				if int(scoreData[17][:8]) != int(self.get_argument("osuver")):
-					submit_flags.append(f"Score was submitted with mismatching version numbers, osuver arg is {str(self.get_argument('osuver'))}, osuver from score data is {str(scoreData[17][:8])} ")
-
-				
+			
 				bad_flags = scoreData[17].count(' ') & ~4
 				if bad_flags != 0:
 					if bad_flags & 1 << 0: 
