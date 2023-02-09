@@ -14,17 +14,16 @@ def printServerStartHeader(asciiArt):
 
 	if asciiArt:
 		DaColour = random.choice([bcolors.BLUE, bcolors.YELLOW, bcolors.PINK, bcolors.RED, bcolors.GREEN])
-		printColored(r""" ______  ______  __  __  ___   ___  ______  __ __ __      
-/_____/\/_____/\/_/\/_/\/__/\ /__/\/_____/\/_//_//_/\     
-\:::_ \ \::::_\/\:\ \:\ \::\ \\  \ \:::_ \ \:\\:\\:\ \    
- \:\ \ \ \:\/___/\:\ \:\ \::\/_\ .\ \:\ \ \ \:\\:\\:\ \   
-  \:\ \ \ \_::._\:\:\ \:\ \:: ___::\ \:\ \ \ \:\\:\\:\ \  
-   \:\_\ \ \/____\:\:\_\:\ \: \ \\::\ \:\_\ \ \:\\:\\:\ \ 
-    \_____\/\_____\/\_____\/\__\/ \::\/\_____\/\_______\/ 
+		printColored(r""" __    ___  __ _ 
+/  |  /   |/ _(_)
+`| | / /| | |_ _ 
+ | |/ /_| |  _| |
+_| |\___  | | | |
+\___/   |_/_| |_|
 """, DaColour)
 
-	printColored("# lets - osuHOW's bad score server", bcolors.BLUE)
-	printColored("# This is a fork of the LETS score server by rosu which is a fork of the lets score server by ainu which is a fork of the lets score server by osufx which is a fork of the lets score server by the ripple team", bcolors.BLUE)
+	printColored("# Welcome to 14fi's score server.", bcolors.BLUE)
+	printColored("# Thanks to osuHOW, RealistikOsu, osu!Ainu, osu!fx, and Ripple.", bcolors.BLUE)
 
 
 def printNoNl(string):
