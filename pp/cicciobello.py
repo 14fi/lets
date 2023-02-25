@@ -80,9 +80,9 @@ class Cicciobello:
         except exceptions.unsupportedGameModeException:
             log.error("cicciobello ~> Unsupported gamemode")
             self.pp = 0
-        except Exception as e:
-            log.error("cicciobello ~> Unhandled exception: {}".format(str(e)))
-            self.pp = 0
-            raise
+        #except Exception as e:
+            #log.error("cicciobello ~> Unhandled exception: {}".format(str(e)))
+            #self.pp = 0
+            #raise
         finally:
             log.debug("cicciobello ~> Shutting down, pp = {}".format(self.pp))

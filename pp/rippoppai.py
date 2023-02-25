@@ -88,6 +88,7 @@ class oppai:
 	def _runOppaiProcess(command):
 		log.debug("oppai ~> running {}".format(command))
 		process = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		log.debug("oppai ~> full output: {}".format(process))
 		try:
 			output = json.loads(process.stdout.decode("utf-8", errors="ignore"))
 			if "code" not in output or "errstr" not in output:

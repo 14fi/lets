@@ -1,4 +1,4 @@
-import constants
+from pp.catch_the_pp import constants
 from pp.catch_the_pp.osu_parser.mathhelper import clamp, sign
 
 class DifficultyObject(object):
