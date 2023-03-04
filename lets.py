@@ -51,6 +51,11 @@ from handlers import difficultyRatingHandler
 from handlers import osuGetFriends
 from handlers import getFavouriteHandler
 from handlers import setFavouriteHandler
+from handlers import checkForUpdatesHandler
+from handlers import updateDownloadHandler
+from handlers import updateDownloadHandler2
+from handlers import updateListHandler
+from handlers import getUntoneTokenHandler
 from helpers import config
 from helpers import consoleHelper
 from common import generalUtils
@@ -96,6 +101,13 @@ def make_app():
 		(r"/web/osu-addfavourite.php", setFavouriteHandler.handler),
 		(r"/web/osu-getfavourites.php", getFavouriteHandler.handler),
 
+		(r"/web/14fi-getuntonetoken.php", getUntoneTokenHandler.handler),
+
+		(r"/release/update.php", checkForUpdatesHandler.handler),
+		(r"/release/update", updateListHandler.handler),
+		(r"/release/osu!.exe.zip", updateDownloadHandler.handler),
+		#TODO: don't do it like this, this is shit
+		(r"/release/osu!framework.dll", updateDownloadHandler2.handler),
 
 		# Not done yet
 		(r"/web/osu-get-beatmap-topic.php", emptyHandler.handler),
