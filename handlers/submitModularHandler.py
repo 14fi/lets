@@ -486,9 +486,7 @@ class handler(requestsManager.asyncRequestHandler):
 
 				# Send message to #announce if we're rank #1
 				if newScoreboard.personalBestRank == 1 and s.completed == 3 and not restricted:
-					annmsg = "[{}] [{}/{}u/{} {}] achieved rank #1 on [https://osuhow.cf/b/{} {}] ({}) with {}pp".format(
-						game_mode_str,
-						glob.conf.config["server"]["serverurl"],
+					annmsg = "[https://14fi-web.tanza.me/{}u/{} {}] achieved rank #1 on [https://14fi-web.tanza.me/b/{} {}] ({}) with {}pp".format(
 						ProfAppend,
 						userID,
 						username.encode().decode("ASCII", "ignore"),

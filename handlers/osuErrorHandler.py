@@ -132,24 +132,6 @@ class handler(requestsManager.asyncRequestHandler):
 			else:
 				exehash = "0"
 
-			if "ss" in self.request.arguments:
-				'''
-				This appears when the client sends a bancho_monitor """"""anticheat"""""" screenshot,
-				We won't save it, but we will send a notitication to the discord.
-				'''
-				webhook = Webhook(glob.conf.config["discord"]["ahook"],
-				color=0xc32c74,
-				footer="stupid anticheat")
-				if glob.conf.config["discord"]["enable"]:
-						webhook.set_title(title=f"Catched some cheater {username} ({userid})")
-						webhook.set_desc(f'They just tried to send bancho_monitor!')
-						webhook.set_footer(text="peppycode anticheat")
-						webhook.post()
-
-			else:
-				pass
-
-
 			if "config" in self.request.arguments:
 				config1 = str(self.get_argument("config"))
 				config = ""
@@ -160,45 +142,7 @@ class handler(requestsManager.asyncRequestHandler):
 				config1 = "0"
 			else:
 				config = "0"
-			if userid != 0:
-				clientmodallowed = glob.db.fetch("SELECT clientmodallowed FROM users WHERE id = %s LIMIT 1", [userid])
-				clientmodallowed = int(clientmodallowed["clientmodallowed"])
-			else:
-				# We don't care if they're not logged in.
-				clientmodallowed = 1
-			try:
-				if not "cuttingedge" in version or not "beta" in version or "ce45" in version or "dev" in version:
-					aversion = version.split(".")
-					gamer = aversion[0].strip()
-					gamed = gamer.lstrip("b")
-					brazil = int(gamed)
-				else:
-					brazil = 20142014
 
-			except:
-				brazil = 20142014
-			#TODO: make word and version black/whitelist
-			if(
-			"OsuMain" in stacktrace
-			or "GameBase" in stacktrace 
-			or "osu_common" in stacktrace 
-			or "Bancho" in stacktrace 
-			or brazil > 2015401 
-			and "#=" not in stacktrace
-			):
-				if(
-					not clientmodallowed == 1
-				):
-					webhook = Webhook(glob.conf.config["discord"]["ahook"],
-					color=0xc32c74,
-					footer="stupid anticheat")
-					if glob.conf.config["discord"]["enable"]:
-						webhook.set_title(title=f"Catched some cheater {username} ({userid})")
-						webhook.set_desc(f"They sent a suspicious stacktrace! ```{stacktrace}``` osuver: {version}, exehash: {exehash} ")
-						webhook.set_footer(text="peppycode anticheat")
-						webhook.post()
-
-		
 			#put it in the db
 			query = "INSERT INTO osuerrors (id, userid, time, username, osumode, gamemode, gametime, audiotime, culture, beatmap_id, beatmap_checksum, exception, feedback, stacktrace, iltrace, soft, beatmap_count, compatibility, ram, version, exehash, config) VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s ,%s ,%s)"
 			glob.db.execute(query, [userid, timestamp, username, osumode, gamemode, gametime, audiotime, culture, beatmap_id, beatmap_checksum, exception, feedback, stacktrace, iltrace, soft, beatmap_count, compatibility, ram, version, exehash, config])
