@@ -212,12 +212,14 @@ class handler(requestsManager.asyncRequestHandler):
 				# Login and ban check
 				user_id = userUtils.getID(username)
 				if not user_id:
-					raise exceptions.loginFailedException(MODULE_NAME, user_id)
+					self.write("error: pass")
+					return
 				if not userUtils.checkLogin(user_id, self.get_argument("ha", ''), self.getRequestIP()):
-					raise exceptions.loginFailedException(MODULE_NAME, username)
+					self.write("error: pass")
+					return
 
-				#if self.get_argument('vv') != '4':
-					#userUtils.scoreboardMismatch(user_id, username)
+				if self.get_argument('vv') != '2':
+					log.warning(f"{username} ({user_id}) tried to request a leaderboard with the wrong scoreboard version")
 
 				score_mods = int(self.get_argument('mods'))
 				privs = userUtils.getPrivileges(user_id)
