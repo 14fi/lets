@@ -68,6 +68,7 @@ class config:
             self.config.get("server", "replayspath")
             self.config.get("server", "beatmapspath")
             self.config.get("server", "screenshotspath")
+            self.config.get("server", "scoresubkey")
 
             self.config.get("sentry", "enable")
             self.config.get("sentry", "dsn")
@@ -134,6 +135,7 @@ class config:
         self.config.set("server", "replayspath", ".data/replays")
         self.config.set("server", "beatmapspath", ".data/beatmaps")
         self.config.set("server", "screenshotspath", ".data/screenshots")
+        self.config.set("server", "scoresubkey", "h89f2-890h2h89b34g-h80g134n90133")
 
         self.config.add_section("sentry")
         self.config.set("sentry", "enable", "False")
