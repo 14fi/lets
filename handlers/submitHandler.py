@@ -304,9 +304,35 @@ class handler(requestsManager.asyncRequestHandler):
 			# At the end, check achievements
 			
 			_mode = s.gameMode
-			new_new_achievements = "" 
 
-			#TODO: add achievements
+			achievements = ""
+			achievements_dict = []
+
+			if s.passed:
+				try:
+					db_achievements = [ ach["achievement_id"] for ach in glob.db.fetchAll("SELECT achievement_id FROM users_achievements WHERE user_id = %s", [userID]) ]
+					
+					#get extra data for achievements
+					achievementData = achievementsHelper.achievementData(userID, beatmapInfo, s, db_achievements)
+
+					for ach in glob.achievements:
+						if ach.id in db_achievements:
+							continue
+						if ach.cond(s, _mode, newUserStats, beatmapInfo, oldUserStats, achievementData):
+							userUtils.unlockAchievement(userID, ach.id)
+							achievements_dict.append(ach.file)
+					achievements_done = 0
+					for achievement in achievements_dict:
+						if achievements_done == 0:
+							achievements = f"{achievement}"
+						else:
+							achievements = f"{achievements} {achievement}"
+						achievements_done += 1
+
+					log.debug(achievements)
+	
+				except Exception as e:
+					log.warning(f"error while processing achievements for score id {s.scoreID} exception: {e}")
 
 			if beatmapInfo is not None and beatmapInfo != False and s.passed:
 				log.debug("Started building ranking panel")
@@ -353,8 +379,7 @@ class handler(requestsManager.asyncRequestHandler):
 						("rankAfter", rankInfo["currentRank"]),
 						("toNextRank", rankInfo["difference"]),
 						("toNextRankUser", rankInfo["nextUsername"]),
-						("achievements", ""),
-						("achievements-new", new_new_achievements),
+						("achievements", achievements),
 						("onlineScoreId", s.scoreID)
 					])
 				]				

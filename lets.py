@@ -44,7 +44,6 @@ from handlers import osuSearchHandler
 from handlers import osuSearchSetHandler
 from handlers import redirectHandler
 from handlers import lastFMHandler
-from handlers import submitModularHandler
 from handlers import submitHandler
 from handlers import uploadScreenshotHandler
 from handlers import commentHandler
@@ -70,7 +69,6 @@ def make_app():
 		(r"/users", inGameRegistrationHandler.handler), 
 		(r"/web/bancho_connect.php", banchoConnectHandler.handler),
 		(r"/web/osu-osz2-getscores.php", getScoresHandler.handler),
-		(r"/web/osu-submit-modular.php", submitModularHandler.handler),
 		(r"/web/14fi-submit.php", submitHandler.handler),
 		(r"/web/osu-getreplay.php", getReplayHandler.handler),
 		(r"/web/osu-screenshot.php", uploadScreenshotHandler.handler),

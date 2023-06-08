@@ -40,20 +40,16 @@ class achievementData:
             self.unlockSRanker = False
             self.unlockMostImproved = False
             self.unlockObsessed = False
-            self.unlockObamaCode = False
-
+            self.playcount = 0
 
             self.checkAchievements()
     
     def checkAchievements(self):
         #TODO: dont check medals user already has
-        checkYandere(self)
         checkSRanker(self)
         checkMostImproved(self)
         checkObsessed(self)
-        checkObamaCode(self)
-
-
+        self.playcount = int(glob.db.fetch("SELECT playcount_std FROM users_stats WHERE id = %s LIMIT 1", [self.userID])["playcount_std"])
 
 
 def checkUserPlayedBeatmapSet(userID, beatmapSetID):
@@ -68,22 +64,6 @@ def checkUserPlayedBeatmap(userID, beatmapID):
         return True
     else:
         return False
-
-def checkYandere(self):
-    # Check if we already have the achievement.
-    if not 136 in self.currentAchievements:
-        #check if we can unlock yandere achievement
-        if(
-            self.beatmapSetID == 935098
-            or self.beatmapSetID == 959688
-            or self.beatmapSetID == 1016769
-            or self.beatmapSetID == 744593
-        ):
-            if checkUserPlayedBeatmapSet(self.userID, 935098):
-                if checkUserPlayedBeatmapSet(self.userID, 959688):
-                    if checkUserPlayedBeatmap(self.userID, 2128030):
-                        if checkUserPlayedBeatmap(self.userID, 1569904):
-                            self.unlockYandere = True
 
 def checkSRanker(self):
     # Check if we already have the achievement.
@@ -111,12 +91,3 @@ def checkObsessed(self):
         if int(count["COUNT(*)"]) >= 100:
             self.unlockObsessed = True
 
-def checkObamaCode(self):
-    # Check if we already have the achievement.
-    if not 143 in self.currentAchievements:
-        obamaFavourites = glob.db.fetchAll("SELECT * FROM favourite_beatmaps WHERE userid = 1000")
-        for favourite in obamaFavourites:
-            beatmapSetID = favourite["beatmapset_id"]
-            if not checkUserPlayedBeatmapSet(self.userID, beatmapSetID):
-                return
-        self.unlockObamaCode = True
